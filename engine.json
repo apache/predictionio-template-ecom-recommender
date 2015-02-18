@@ -4,13 +4,16 @@
   "engineFactory": "org.template.ecommercerecommendation.ECommerceRecommendationEngine",
   "datasource": {
     "params" : {
-      "appId": 6
+      "appId": 16
     }
   },
   "algorithms": [
     {
       "name": "als",
       "params": {
+        "appId": 16,
+        "unseenOnly": true,
+        "seenEvents": ["view"],
         "rank": 10,
         "numIterations" : 20,
         "lambda": 0.01,
