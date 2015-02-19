@@ -32,8 +32,7 @@ class ALSModel(
   val userFeatures: Map[Int, Array[Double]],
   val productFeatures: Map[Int, (Item, Option[Array[Double]])],
   val userStringIntMap: BiMap[String, Int],
-  val itemStringIntMap: BiMap[String, Int]//,
-  //val items: Map[Int, Item]
+  val itemStringIntMap: BiMap[String, Int]
 ) extends Serializable {
 
   @transient lazy val itemIntStringMap = itemStringIntMap.inverse
@@ -47,9 +46,7 @@ class ALSModel(
     s" userStringIntMap: [${userStringIntMap.size}]" +
     s"(${userStringIntMap.take(2).toString}...)]" +
     s" itemStringIntMap: [${itemStringIntMap.size}]" +
-    s"(${itemStringIntMap.take(2).toString}...)]" /*+
-    s" items: [${items.size}]" +
-    s"(${items.take(2).toString}...)]"*/
+    s"(${itemStringIntMap.take(2).toString}...)]"
   }
 }
 
@@ -136,8 +133,7 @@ class ALSAlgorithm(val ap: ALSAlgorithmParams)
       userFeatures = userFeatures,
       productFeatures = productFeatures,
       userStringIntMap = userStringIntMap,
-      itemStringIntMap = itemStringIntMap//,
-      //items = items
+      itemStringIntMap = itemStringIntMap
     )
   }
 
@@ -145,7 +141,6 @@ class ALSAlgorithm(val ap: ALSAlgorithmParams)
 
     val userFeatures = model.userFeatures
     val productFeatures = model.productFeatures
-    //val items = model.items
 
     // convert whiteList's string ID to integer index
     val whiteList: Option[Set[Int]] = query.whiteList.map( set =>
@@ -159,6 +154,7 @@ class ALSAlgorithm(val ap: ALSAlgorithmParams)
 
       val seenEvents: Iterator[Event] = lEventsDb.find(
         appId = ap.appId,
+        // entityType and entityId is specified for fast lookup
         entityType = Some("user"),
         entityId = Some(query.user),
         eventNames = Some(ap.seenEvents),
@@ -209,7 +205,6 @@ class ALSAlgorithm(val ap: ALSAlgorithmParams)
               i = i,
               item = item,
               categories = query.categories,
-              //seenList = seenList,
               whiteList = whiteList,
               blackList = finalBlackList
             )
@@ -236,7 +231,6 @@ class ALSAlgorithm(val ap: ALSAlgorithmParams)
       predictNewUser(
         model = model,
         query = query,
-        //seenList = seenList,
         whiteList = whiteList,
         blackList = finalBlackList
       )
@@ -258,17 +252,16 @@ class ALSAlgorithm(val ap: ALSAlgorithmParams)
   def predictNewUser(
     model: ALSModel,
     query: Query,
-    //seenList: Set[Inst],
     whiteList: Option[Set[Int]],
     blackList: Set[Int]): Array[(Int, Double)] = {
 
     val userFeatures = model.userFeatures
     val productFeatures = model.productFeatures
-    //val items = model.items
 
     // get recent view events
     val recentEvents = lEventsDb.find(
       appId = ap.appId,
+      // entityType and entityId is specified for fast lookup
       entityType = Some("user"),
       entityId = Some(query.user),
       eventNames = Some(Seq("view")),
@@ -315,7 +308,6 @@ class ALSAlgorithm(val ap: ALSAlgorithmParams)
             i = i,
             item = item,
             categories = query.categories,
-            //seenList = seenList,
             whiteList = whiteList,
             blackList = blackList
           )
@@ -391,13 +383,11 @@ class ALSAlgorithm(val ap: ALSAlgorithmParams)
     i: Int,
     item: Item,
     categories: Option[Set[String]],
-    //seenList: Set[Int],
     whiteList: Option[Set[Int]],
     blackList: Set[Int]
   ): Boolean = {
     // can add other custom filtering here
     whiteList.map(_.contains(i)).getOrElse(true) &&
-    //blackList.map(!_.contains(i)).getOrElse(true) &&
     !blackList.contains(i) &&
     // filter categories
     categories.map { cat =>
