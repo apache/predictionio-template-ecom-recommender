@@ -14,9 +14,8 @@ import org.apache.spark.mllib.recommendation.{Rating => MLlibRating}
 import grizzled.slf4j.Logger
 
 import scala.collection.mutable.PriorityQueue
-
 import scala.concurrent.duration.Duration
-import scala.concurrent.ExecutionContext.Implicits.global // TODO
+import scala.concurrent.ExecutionContext.Implicits.global
 
 case class ALSAlgorithmParams(
   appId: Int,
@@ -31,10 +30,10 @@ case class ALSAlgorithmParams(
 class ALSModel(
   val rank: Int,
   val userFeatures: Map[Int, Array[Double]],
-  val productFeatures: Map[Int, Array[Double]],
+  val productFeatures: Map[Int, (Item, Option[Array[Double]])],
   val userStringIntMap: BiMap[String, Int],
-  val itemStringIntMap: BiMap[String, Int],
-  val items: Map[Int, Item]
+  val itemStringIntMap: BiMap[String, Int]//,
+  //val items: Map[Int, Item]
 ) extends Serializable {
 
   @transient lazy val itemIntStringMap = itemStringIntMap.inverse
@@ -48,9 +47,9 @@ class ALSModel(
     s" userStringIntMap: [${userStringIntMap.size}]" +
     s"(${userStringIntMap.take(2).toString}...)]" +
     s" itemStringIntMap: [${itemStringIntMap.size}]" +
-    s"(${itemStringIntMap.take(2).toString}...)]" +
+    s"(${itemStringIntMap.take(2).toString}...)]" /*+
     s" items: [${items.size}]" +
-    s"(${items.take(2).toString}...)]"
+    s"(${items.take(2).toString}...)]"*/
   }
 }
 
@@ -79,11 +78,6 @@ class ALSAlgorithm(val ap: ALSAlgorithmParams)
     // create User and item's String ID to integer index BiMap
     val userStringIntMap = BiMap.stringInt(data.users.keys)
     val itemStringIntMap = BiMap.stringInt(data.items.keys)
-
-    // collect Item as Map and convert ID to Int index
-    val items: Map[Int, Item] = data.items.map { case (id, item) =>
-      (itemStringIntMap(id), item)
-    }.collectAsMap.toMap
 
     val mllibRatings = data.viewEvents
       .map { r =>
@@ -126,13 +120,24 @@ class ALSAlgorithm(val ap: ALSAlgorithmParams)
       alpha = 1.0,
       seed = seed)
 
+    val userFeatures = m.userFeatures.collectAsMap.toMap
+
+    // convert ID to Int index
+    val items = data.items.map { case (id, item) =>
+      (itemStringIntMap(id), item)
+    }
+
+    // join item with the trained productFeatures
+    val productFeatures = items.leftOuterJoin(m.productFeatures)
+      .collectAsMap.toMap
+
     new ALSModel(
       rank = m.rank,
-      userFeatures = m.userFeatures.collectAsMap.toMap,
-      productFeatures = m.productFeatures.collectAsMap.toMap,
+      userFeatures = userFeatures,
+      productFeatures = productFeatures,
       userStringIntMap = userStringIntMap,
-      itemStringIntMap = itemStringIntMap,
-      items = items
+      itemStringIntMap = itemStringIntMap//,
+      //items = items
     )
   }
 
@@ -140,33 +145,32 @@ class ALSAlgorithm(val ap: ALSAlgorithmParams)
 
     val userFeatures = model.userFeatures
     val productFeatures = model.productFeatures
-    val items = model.items
+    //val items = model.items
 
+    // convert whiteList's string ID to integer index
     val whiteList: Option[Set[Int]] = query.whiteList.map( set =>
       set.map(model.itemStringIntMap.get(_)).flatten
     )
 
-    val blackList: Option[Set[Int]] = query.blackList.map ( set =>
-      set.map(model.itemStringIntMap.get(_)).flatten
-    )
+    val blackList: Set[String] = query.blackList.getOrElse(Set[String]())
 
+    // if unseenOnly is True, get all seen items
     val seenItems: Set[String] = if (ap.unseenOnly) {
 
-      val ta = System.currentTimeMillis
-      //
       val seenEvents: Iterator[Event] = lEventsDb.find(
         appId = ap.appId,
         entityType = Some("user"),
         entityId = Some(query.user),
         eventNames = Some(ap.seenEvents),
+        // set time limit to avoid super long DB access
         timeout = Duration(200, "millis")
-      ).right
-      .getOrElse{
-        logger.error("Encounter error when read seen events")
-        Iterator[Event]()
+      ) match {
+        case Right(x) => x
+        case Left(e) => {
+          logger.error(s"Error when read seen events: ${e}")
+          Iterator[Event]()
+        }
       }
-      val tb = System.currentTimeMillis
-      println(s"time seen: ${tb - ta} ms")
 
       seenEvents.map { event =>
         try {
@@ -179,54 +183,65 @@ class ALSAlgorithm(val ap: ALSAlgorithmParams)
         }
       }.toSet
     } else {
-
       Set[String]()
     }
 
-    val seenList: Set[Int] = seenItems.map (x =>
+    // combine query's blackList and seenItems into final blackList
+    // convert seen Items list from String ID to interger Index
+    val finalBlackList: Set[Int] = (blackList ++ seenItems).map( x =>
       model.itemStringIntMap.get(x)).flatten
 
-    val t1 = System.currentTimeMillis
-    val indexScores: Map[Int, Double] =
+    val userFeature =
       model.userStringIntMap.get(query.user).map { userIndex =>
         userFeatures.get(userIndex)
       }
       // flatten Option[Option[Array[Double]]] to Option[Array[Double]]
       .flatten
-      .map { uf =>
+
+    val topScores = if (userFeature.isDefined) {
+      // the user has feature vector
+      val uf = userFeature.get
+      val indexScores: Map[Int, Double] =
         productFeatures.par // convert to parallel collection
-          .filter { case (i, f) =>
+          .filter { case (i, (item, feature)) =>
+            feature.isDefined &&
             isCandidateItem(
               i = i,
-              items = items,
+              item = item,
               categories = query.categories,
-              seenList = seenList,
+              //seenList = seenList,
               whiteList = whiteList,
-              blackList = blackList
+              blackList = finalBlackList
             )
           }
-          .map { case (i, f) =>
-            (i, dotProduct(uf, f))
+          .map { case (i, (item, feature)) =>
+            // NOTE: feature must be defined, so can call .get
+            val s = dotProduct(uf, feature.get)
+            // Can adjust score here
+            (i, s)
           }
-          .filter(_._2 > 0) // keep items with score > 0
+          .filter(_._2 > 0) // only keep items with score > 0
           .seq // convert back to sequential collection
 
-      }.getOrElse{
-        logger.info(s"No userFeature found for user ${query.user}.")
-        predictNewUser(
-          model = model,
-          query = query,
-          seenList = seenList,
-          whiteList = whiteList,
-          blackList = blackList
-        )
-      }
+      val ord = Ordering.by[(Int, Double), Double](_._2).reverse
+      val topScores = getTopN(indexScores, query.num)(ord).toArray
 
-    val t2 = System.currentTimeMillis
-    println(s"time cal: ${t2 - t1}")
+      topScores
 
-    val ord = Ordering.by[(Int, Double), Double](_._2).reverse
-    val topScores = getTopN(indexScores, query.num)(ord).toArray
+    } else {
+      // the user doesn't have feature vector.
+      // For example, new user created after model is trained.
+
+      logger.info(s"No userFeature found for user ${query.user}.")
+      predictNewUser(
+        model = model,
+        query = query,
+        //seenList = seenList,
+        whiteList = whiteList,
+        blackList = finalBlackList
+      )
+
+    }
 
     val itemScores = topScores.map { case (i, s) =>
       new ItemScore(
@@ -238,19 +253,20 @@ class ALSAlgorithm(val ap: ALSAlgorithmParams)
     new PredictedResult(itemScores)
   }
 
+  /** Get recently viewed item of the user and return top similar items */
   private
-  def predictNewUser(model: ALSModel,
+  def predictNewUser(
+    model: ALSModel,
     query: Query,
-    seenList: Set[Int],
+    //seenList: Set[Inst],
     whiteList: Option[Set[Int]],
-    blackList: Option[Set[Int]]): Map[Int, Double] = {
+    blackList: Set[Int]): Array[(Int, Double)] = {
 
     val userFeatures = model.userFeatures
     val productFeatures = model.productFeatures
-    val items = model.items
+    //val items = model.items
 
     // get recent view events
-    val ta = System.currentTimeMillis
     val recentEvents = lEventsDb.find(
       appId = ap.appId,
       entityType = Some("user"),
@@ -258,15 +274,17 @@ class ALSAlgorithm(val ap: ALSAlgorithmParams)
       eventNames = Some(Seq("view")),
       limit = Some(10),
       reversed = Some(true),
+      // set time limit to avoid super long DB access
       timeout = Duration(200, "millis")
-    ).right.getOrElse{
-      logger.error("Encounter error when get recent events")
-      Iterator[Event]()
+    ) match {
+      case Right(x) => x
+      case Left(e) => {
+        logger.error(s"Error when read recent events: ${e}")
+        Iterator[Event]()
+      }
     }
-    val tb = System.currentTimeMillis
-    println(s"time recent: ${tb - ta} ms")
 
-    val queryItems: Set[String] = recentEvents.map { event =>
+    val recentItems: Set[String] = recentEvents.map { event =>
       try {
         event.targetEntityId.get
       } catch {
@@ -277,42 +295,47 @@ class ALSAlgorithm(val ap: ALSAlgorithmParams)
       }
     }.toSet
 
-    val queryList: Set[Int] = queryItems.map (x =>
+    val recentList: Set[Int] = recentItems.map (x =>
       model.itemStringIntMap.get(x)).flatten
 
-    val queryFeatures: Vector[Array[Double]] = queryList.toVector
+    val recentFeatures: Vector[Array[Double]] = recentList.toVector
       // productFeatures may not contain the requested item
-      .map { item => productFeatures.get(item) }
-      .flatten
+      .map { i =>
+        productFeatures.get(i).map { case (item, f) => f }.flatten
+      }.flatten
 
-    val indexScores: Map[Int, Double] = if (queryFeatures.isEmpty) {
-      logger.info(s"No productFeatures vector for query items ${queryItems}.")
+    val indexScores: Map[Int, Double] = if (recentFeatures.isEmpty) {
+      logger.info(s"No productFeatures vector for recent items ${recentItems}.")
       Map[Int, Double]()
     } else {
-      productFeatures.par
-        .filter { case (i, f) => // convert to parallel collection
+      productFeatures.par // convert to parallel collection
+        .filter { case (i, (item, feature)) =>
+          feature.isDefined &&
           isCandidateItem(
             i = i,
-            items = items,
+            item = item,
             categories = query.categories,
-            seenList = seenList,
+            //seenList = seenList,
             whiteList = whiteList,
             blackList = blackList
           )
         }
-        .map { case (i, f) =>
-          val s = queryFeatures.map{ qf =>
-            cosine(qf, f)
+        .map { case (i, (item, feature)) =>
+          val s = recentFeatures.map{ rf =>
+            cosine(rf, feature.get) // feature is defined
           }.reduce(_ + _)
+          // Can adjust score here
           (i, s)
         }
         .filter(_._2 > 0) // keep items with score > 0
         .seq // convert back to sequential collection
     }
 
-    indexScores
-  }
+    val ord = Ordering.by[(Int, Double), Double](_._2).reverse
+    val topScores = getTopN(indexScores, query.num)(ord).toArray
 
+    topScores
+  }
 
   private
   def getTopN[T](s: Iterable[T], n: Int)(implicit ord: Ordering[T]): Seq[T] = {
@@ -366,22 +389,24 @@ class ALSAlgorithm(val ap: ALSAlgorithmParams)
   private
   def isCandidateItem(
     i: Int,
-    items: Map[Int, Item],
+    item: Item,
     categories: Option[Set[String]],
-    seenList: Set[Int],
+    //seenList: Set[Int],
     whiteList: Option[Set[Int]],
-    blackList: Option[Set[Int]]
+    blackList: Set[Int]
   ): Boolean = {
+    // can add other custom filtering here
     whiteList.map(_.contains(i)).getOrElse(true) &&
-    blackList.map(!_.contains(i)).getOrElse(true) &&
-    !seenList.contains(i) &&
+    //blackList.map(!_.contains(i)).getOrElse(true) &&
+    !blackList.contains(i) &&
     // filter categories
     categories.map { cat =>
-      items(i).categories.map { itemCat =>
+      item.categories.map { itemCat =>
         // keep this item if has ovelap categories with the query
         !(itemCat.toSet.intersect(cat).isEmpty)
       }.getOrElse(false) // discard this item if it has no categories
     }.getOrElse(true)
+
   }
 
 }
