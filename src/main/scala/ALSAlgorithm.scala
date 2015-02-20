@@ -57,6 +57,7 @@ class ALSAlgorithm(val ap: ALSAlgorithmParams)
   extends P2LAlgorithm[PreparedData, ALSModel, Query, PredictedResult] {
 
   @transient lazy val logger = Logger[this.type]
+  // NOTE: use getLEvents() for local access
   @transient lazy val lEventsDb = Storage.getLEvents()
 
   def train(data: PreparedData): ALSModel = {
@@ -94,7 +95,8 @@ class ALSAlgorithm(val ap: ALSAlgorithmParams)
       }.filter { case ((u, i), v) =>
         // keep events with valid user and item index
         (u != -1) && (i != -1)
-      }.reduceByKey(_ + _) // aggregate all view events of same user-item pair
+      }
+      .reduceByKey(_ + _) // aggregate all view events of same user-item pair
       .map { case ((u, i), v) =>
         // MLlibRating requires integer index for user and item
         MLlibRating(u, i, v)
@@ -173,7 +175,7 @@ class ALSAlgorithm(val ap: ALSAlgorithmParams)
           event.targetEntityId.get
         } catch {
           case e => {
-            logger.error("Can't get targetEntityId of event ${event}.")
+            logger.error(s"Can't get targetEntityId of event ${event}.")
             throw e
           }
         }
@@ -182,10 +184,34 @@ class ALSAlgorithm(val ap: ALSAlgorithmParams)
       Set[String]()
     }
 
-    // combine query's blackList and seenItems into final blackList
+    val unavailableItems: Set[String] = lEventsDb.find(
+      appId = ap.appId,
+      // entityType and entityId is specified for fast lookup
+      entityType = Some("itemConstraint"),
+      entityId = Some("unavailable"),
+      eventNames = Some(Seq("$set")),
+      limit = Some(1),
+      reversed = Some(true),
+      timeout = Duration(200, "millis")
+    ) match {
+      case Right(x) => {
+        if (x.hasNext) {
+          x.next.properties.get[Set[String]]("items")
+        } else {
+          Set[String]()
+        }
+      }
+      case Left(e) => {
+        logger.error(s"Error when read unavailable items: ${e}")
+        Set[String]()
+      }
+    }
+
+    // combine query's blackList,seenItems and unavailableItems
+    // into final blackList.
     // convert seen Items list from String ID to interger Index
-    val finalBlackList: Set[Int] = (blackList ++ seenItems).map( x =>
-      model.itemStringIntMap.get(x)).flatten
+    val finalBlackList: Set[Int] = (blackList ++ seenItems ++
+      unavailableItems).map( x => model.itemStringIntMap.get(x)).flatten
 
     val userFeature =
       model.userStringIntMap.get(query.user).map { userIndex =>
@@ -225,8 +251,7 @@ class ALSAlgorithm(val ap: ALSAlgorithmParams)
 
     } else {
       // the user doesn't have feature vector.
-      // For example, new user created after model is trained.
-
+      // For example, new user is created after model is trained.
       logger.info(s"No userFeature found for user ${query.user}.")
       predictNewUser(
         model = model,

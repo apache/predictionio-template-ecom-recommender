@@ -4,7 +4,7 @@
   "engineFactory": "org.template.ecommercerecommendation.ECommerceRecommendationEngine",
   "datasource": {
     "params" : {
-      "appId": 16
+      "appId": 17
     }
   },
   "algorithms": [
