@@ -154,12 +154,13 @@ class ALSAlgorithm(val ap: ALSAlgorithmParams)
     // if unseenOnly is True, get all seen items
     val seenItems: Set[String] = if (ap.unseenOnly) {
 
-      val seenEvents: Iterator[Event] = lEventsDb.find(
+      // get all user item events which are considered as "seen" events
+      val seenEvents: Iterator[Event] = lEventsDb.findSingleEntity(
         appId = ap.appId,
-        // entityType and entityId is specified for fast lookup
-        entityType = Some("user"),
-        entityId = Some(query.user),
+        entityType = "user",
+        entityId = query.user,
         eventNames = Some(ap.seenEvents),
+        targetEntityType = Some(Some("item")),
         // set time limit to avoid super long DB access
         timeout = Duration(200, "millis")
       ) match {
@@ -184,14 +185,14 @@ class ALSAlgorithm(val ap: ALSAlgorithmParams)
       Set[String]()
     }
 
-    val unavailableItems: Set[String] = lEventsDb.find(
+    // get the latest itemConstraint unavailable $set event
+    val unavailableItems: Set[String] = lEventsDb.findSingleEntity(
       appId = ap.appId,
-      // entityType and entityId is specified for fast lookup
-      entityType = Some("itemConstraint"),
-      entityId = Some("unavailable"),
+      entityType = "itemConstraint",
+      entityId = "unavailable",
       eventNames = Some(Seq("$set")),
       limit = Some(1),
-      reversed = Some(true),
+      latest = true,
       timeout = Duration(200, "millis")
     ) match {
       case Right(x) => {
@@ -283,15 +284,16 @@ class ALSAlgorithm(val ap: ALSAlgorithmParams)
     val userFeatures = model.userFeatures
     val productFeatures = model.productFeatures
 
-    // get recent view events
-    val recentEvents = lEventsDb.find(
+    // get latest 10 user view item events
+    val recentEvents = lEventsDb.findSingleEntity(
       appId = ap.appId,
       // entityType and entityId is specified for fast lookup
-      entityType = Some("user"),
-      entityId = Some(query.user),
+      entityType = "user",
+      entityId = query.user,
       eventNames = Some(Seq("view")),
+      targetEntityType = Some(Some("item")),
       limit = Some(10),
-      reversed = Some(true),
+      latest = true,
       // set time limit to avoid super long DB access
       timeout = Duration(200, "millis")
     ) match {

@@ -11,7 +11,7 @@
     {
       "name": "als",
       "params": {
-        "appId": 16,
+        "appId": 17,
         "unseenOnly": true,
         "seenEvents": ["view"],
         "rank": 10,
