@@ -53,6 +53,17 @@ def import_events(client):
         target_entity_id=viewed_item
       )
       count += 1
+      # randomly buy some of the viewed items
+      if random.choice([True, False]):
+        print "User", user_id ,"buys item", viewed_item
+        client.create_event(
+          event="buy",
+          entity_type="user",
+          entity_id=user_id,
+          target_entity_type="item",
+          target_entity_id=viewed_item
+        )
+        count += 1
 
   print "%s events are imported." % count
 
