@@ -185,11 +185,11 @@ class ALSAlgorithm(val ap: ALSAlgorithmParams)
       Set[String]()
     }
 
-    // get the latest itemConstraint unavailable $set event
+    // get the latest constraint unavailableItems $set event
     val unavailableItems: Set[String] = lEventsDb.findSingleEntity(
       appId = ap.appId,
-      entityType = "itemConstraint",
-      entityId = "unavailable",
+      entityType = "constraint",
+      entityId = "unavailableItems",
       eventNames = Some(Seq("$set")),
       limit = Some(1),
       latest = true,
@@ -203,7 +203,7 @@ class ALSAlgorithm(val ap: ALSAlgorithmParams)
         }
       }
       case Left(e) => {
-        logger.error(s"Error when read unavailable items: ${e}")
+        logger.error(s"Error when read set unavailableItems event: ${e}")
         Set[String]()
       }
     }

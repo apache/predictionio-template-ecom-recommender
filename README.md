@@ -116,15 +116,15 @@ curl -i -X POST http://localhost:7070/events.json?accessKey=zPkr6sBwQoBwBjVHK2hs
 
 ## handle unavailable items
 
-Set the following items "unavailable" (need to specify complete list each time when this list is changed):
+Set the following items as unavailable (need to specify complete list each time when this list is changed):
 
 ```
 curl -i -X POST http://localhost:7070/events.json?accessKey=zPkr6sBwQoBwBjVHK2hsF9u26L38ARSe19QzkdYentuomCtYSuH0vXP5fq7advo4 \
 -H "Content-Type: application/json" \
 -d '{
   "event" : "$set",
-  "entityType" : "itemConstraint"
-  "entityId" : "unavailable",
+  "entityType" : "constraint"
+  "entityId" : "unavailableItems",
   "properties" : {
     "items": ["i43", "i20", "i37", "i3", "i4", "i5"],
   }
@@ -132,15 +132,15 @@ curl -i -X POST http://localhost:7070/events.json?accessKey=zPkr6sBwQoBwBjVHK2hs
 }'
 ```
 
-No more items "unavailable":
+Set empty list when no more items unavailable:
 
 ```
 curl -i -X POST http://localhost:7070/events.json?accessKey=zPkr6sBwQoBwBjVHK2hsF9u26L38ARSe19QzkdYentuomCtYSuH0vXP5fq7advo4 \
 -H "Content-Type: application/json" \
 -d '{
   "event" : "$set",
-  "entityType" : "itemConstraint"
-  "entityId" : "unavailable",
+  "entityType" : "constraint"
+  "entityId" : "unavailableItems",
   "properties" : {
     "items": [],
   }
