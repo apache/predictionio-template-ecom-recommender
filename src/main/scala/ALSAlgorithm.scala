@@ -265,6 +265,7 @@ class ALSAlgorithm(val ap: ALSAlgorithmParams)
 
     val itemScores = topScores.map { case (i, s) =>
       new ItemScore(
+        // convert item int index back to string ID
         item = model.itemIntStringMap(i),
         score = s
       )
