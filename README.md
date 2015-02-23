@@ -8,6 +8,12 @@ Please refer to http://docs.prediction.io/templates/ecommercerecommendation/quic
 
 ### develop
 
+- TBD
+
+### v0.1.0
+
+- initial version
+
 
 ## Development Notes
 
