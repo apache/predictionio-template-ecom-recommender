@@ -60,7 +60,7 @@ class ALSAlgorithm(val ap: ALSAlgorithmParams)
   // NOTE: use getLEvents() for local access
   @transient lazy val lEventsDb = Storage.getLEvents()
 
-  def train(data: PreparedData): ALSModel = {
+  def train(sc: SparkContext, data: PreparedData): ALSModel = {
     require(!data.viewEvents.take(1).isEmpty,
       s"viewEvents in PreparedData cannot be empty." +
       " Please check if DataSource generates TrainingData" +
