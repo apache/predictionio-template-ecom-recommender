@@ -6,9 +6,9 @@ Please refer to http://docs.prediction.io/templates/ecommercerecommendation/quic
 
 ## Versions
 
-### develop
+### v0.1.1
 
-- TBD
+- update for PredictionIO 0.9.0
 
 ### v0.1.0
 
