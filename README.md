@@ -6,9 +6,17 @@ Please refer to http://docs.prediction.io/templates/ecommercerecommendation/quic
 
 ## Versions
 
+### v0.3.0
+
+- update for PredictionIO 0.9.2, including:
+
+  - use new PEventStore and LEventStore API
+  - use appName in DataSource and Algorithm parameters
+
+
 ### v0.2.0
 
-- update for PredictionIO 0.9.2
+- update build.sbt and template.json for PredictionIO 0.9.2
 
 ### v0.1.1
 

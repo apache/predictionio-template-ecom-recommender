@@ -4,7 +4,7 @@ import io.prediction.controller.P2LAlgorithm
 import io.prediction.controller.Params
 import io.prediction.data.storage.BiMap
 import io.prediction.data.storage.Event
-import io.prediction.data.storage.Storage
+import io.prediction.data.store.LEventStore
 
 import org.apache.spark.SparkContext
 import org.apache.spark.SparkContext._
@@ -18,7 +18,7 @@ import scala.concurrent.duration.Duration
 import scala.concurrent.ExecutionContext.Implicits.global
 
 case class ALSAlgorithmParams(
-  appId: Int,
+  appName: String,
   unseenOnly: Boolean,
   seenEvents: List[String],
   rank: Int,
@@ -57,8 +57,6 @@ class ALSAlgorithm(val ap: ALSAlgorithmParams)
   extends P2LAlgorithm[PreparedData, ALSModel, Query, PredictedResult] {
 
   @transient lazy val logger = Logger[this.type]
-  // NOTE: use getLEvents() for local access
-  @transient lazy val lEventsDb = Storage.getLEvents()
 
   def train(sc: SparkContext, data: PreparedData): ALSModel = {
     require(!data.viewEvents.take(1).isEmpty,
@@ -155,20 +153,24 @@ class ALSAlgorithm(val ap: ALSAlgorithmParams)
     val seenItems: Set[String] = if (ap.unseenOnly) {
 
       // get all user item events which are considered as "seen" events
-      val seenEvents: Iterator[Event] = lEventsDb.findSingleEntity(
-        appId = ap.appId,
-        entityType = "user",
-        entityId = query.user,
-        eventNames = Some(ap.seenEvents),
-        targetEntityType = Some(Some("item")),
-        // set time limit to avoid super long DB access
-        timeout = Duration(200, "millis")
-      ) match {
-        case Right(x) => x
-        case Left(e) => {
-          logger.error(s"Error when read seen events: ${e}")
+      val seenEvents: Iterator[Event] = try {
+        LEventStore.findByEntity(
+          appName = ap.appName,
+          entityType = "user",
+          entityId = query.user,
+          eventNames = Some(ap.seenEvents),
+          targetEntityType = Some(Some("item")),
+          // set time limit to avoid super long DB access
+          timeout = Duration(200, "millis")
+        )
+      } catch {
+        case e: scala.concurrent.TimeoutException =>
+          logger.error(s"Timeout when read seen events." +
+            s" Empty list is used. ${e}")
           Iterator[Event]()
-        }
+        case e: Exception =>
+          logger.error(s"Error when read seen events: ${e}")
+          throw e
       }
 
       seenEvents.map { event =>
@@ -186,26 +188,29 @@ class ALSAlgorithm(val ap: ALSAlgorithmParams)
     }
 
     // get the latest constraint unavailableItems $set event
-    val unavailableItems: Set[String] = lEventsDb.findSingleEntity(
-      appId = ap.appId,
-      entityType = "constraint",
-      entityId = "unavailableItems",
-      eventNames = Some(Seq("$set")),
-      limit = Some(1),
-      latest = true,
-      timeout = Duration(200, "millis")
-    ) match {
-      case Right(x) => {
-        if (x.hasNext) {
-          x.next.properties.get[Set[String]]("items")
-        } else {
-          Set[String]()
-        }
-      }
-      case Left(e) => {
-        logger.error(s"Error when read set unavailableItems event: ${e}")
+    val unavailableItems: Set[String] = try {
+      val constr = LEventStore.findByEntity(
+        appName = ap.appName,
+        entityType = "constraint",
+        entityId = "unavailableItems",
+        eventNames = Some(Seq("$set")),
+        limit = Some(1),
+        latest = true,
+        timeout = Duration(200, "millis")
+      )
+      if (constr.hasNext) {
+        constr.next.properties.get[Set[String]]("items")
+      } else {
         Set[String]()
       }
+    } catch {
+      case e: scala.concurrent.TimeoutException =>
+        logger.error(s"Timeout when read set unavailableItems event." +
+          s" Empty list is used. ${e}")
+        Set[String]()
+      case e: Exception =>
+        logger.error(s"Error when read set unavailableItems event: ${e}")
+        throw e
     }
 
     // combine query's blackList,seenItems and unavailableItems
@@ -286,23 +291,27 @@ class ALSAlgorithm(val ap: ALSAlgorithmParams)
     val productFeatures = model.productFeatures
 
     // get latest 10 user view item events
-    val recentEvents = lEventsDb.findSingleEntity(
-      appId = ap.appId,
-      // entityType and entityId is specified for fast lookup
-      entityType = "user",
-      entityId = query.user,
-      eventNames = Some(Seq("view")),
-      targetEntityType = Some(Some("item")),
-      limit = Some(10),
-      latest = true,
-      // set time limit to avoid super long DB access
-      timeout = Duration(200, "millis")
-    ) match {
-      case Right(x) => x
-      case Left(e) => {
-        logger.error(s"Error when read recent events: ${e}")
+    val recentEvents = try {
+      LEventStore.findByEntity(
+        appName = ap.appName,
+        // entityType and entityId is specified for fast lookup
+        entityType = "user",
+        entityId = query.user,
+        eventNames = Some(Seq("view")),
+        targetEntityType = Some(Some("item")),
+        limit = Some(10),
+        latest = true,
+        // set time limit to avoid super long DB access
+        timeout = Duration(200, "millis")
+      )
+    } catch {
+      case e: scala.concurrent.TimeoutException =>
+        logger.error(s"Timeout when read recent events." +
+          s" Empty list is used. ${e}")
         Iterator[Event]()
-      }
+      case e: Exception =>
+        logger.error(s"Error when read recent events: ${e}")
+        throw e
     }
 
     val recentItems: Set[String] = recentEvents.map { event =>
