@@ -4,14 +4,14 @@
   "engineFactory": "org.template.ecommercerecommendation.ECommerceRecommendationEngine",
   "datasource": {
     "params" : {
-      "appId": 17
+      "appName": ""
     }
   },
   "algorithms": [
     {
       "name": "als",
       "params": {
-        "appId": 17,
+        "appName": "",
         "unseenOnly": true,
         "seenEvents": ["buy", "view"],
         "rank": 10,
