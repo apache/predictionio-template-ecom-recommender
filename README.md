@@ -6,6 +6,10 @@ Please refer to http://docs.prediction.io/templates/ecommercerecommendation/quic
 
 ## Versions
 
+### v0.3.1
+
+- use INVALID_APP_NAME as default appName in engine.json
+
 ### v0.3.0
 
 - update for PredictionIO 0.9.2, including:
