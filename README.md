@@ -6,6 +6,16 @@ Please refer to http://docs.prediction.io/templates/ecommercerecommendation/quic
 
 ## Versions
 
+### v0.4.0
+
+- Change from ALSAlgorithm.scala to ECommAlgorithm.scala
+
+  * return popular bought items when no information is found for the user.
+  * add "similarEvents" parameter for configuration what user-to-item events are used for finding similar items
+  * re-structure the Algorithm code for easier customization and testing
+
+- add some unit tests for testing code that may be customized
+
 ### v0.3.1
 
 - use INVALID_APP_NAME as default appName in engine.json
