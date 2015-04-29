@@ -22,6 +22,7 @@ case class ECommAlgorithmParams(
   appName: String,
   unseenOnly: Boolean,
   seenEvents: List[String],
+  similarEvents: List[String],
   rank: Int,
   numIterations: Int,
   lambda: Double,
@@ -32,7 +33,7 @@ case class ECommAlgorithmParams(
 case class ProductModel(
   item: Item,
   features: Option[Array[Double]], // features by ALS
-  count: Int // popular count
+  count: Int // popular count for default score
 )
 
 class ECommModel(
@@ -141,8 +142,9 @@ class ECommAlgorithm(val ap: ECommAlgorithmParams)
     )
   }
 
-  // generate MLlibRating from PreparedData.
-  // You may customize here if use different events or different aggregation method
+  /** Generate MLlibRating from PreparedData.
+    * You may customize this function if use different events or different aggregation method
+    */
   def genMLlibRating(
     userStringIntMap: BiMap[String, Int],
     itemStringIntMap: BiMap[String, Int],
@@ -178,9 +180,10 @@ class ECommAlgorithm(val ap: ECommAlgorithmParams)
     mllibRatings
   }
 
-  // train default model.
-  // you may customize here if use different events or
-  // need different ways to count "popular" score
+  /** Train default model.
+    * You may customize this function if use different events or
+    * need different ways to count "popular" score or return default score for item.
+    */
   def trainDefault(
     userStringIntMap: BiMap[String, Int],
     itemStringIntMap: BiMap[String, Int],
@@ -287,7 +290,7 @@ class ECommAlgorithm(val ap: ECommAlgorithmParams)
     new PredictedResult(itemScores)
   }
 
-  /** generate final blackList based on other constraints **/
+  /** Generate final blackList based on other constraints */
   def genBlackList(query: Query): Set[String] = {
     // if unseenOnly is True, get all seen items
     val seenItems: Set[String] = if (ap.unseenOnly) {
@@ -358,7 +361,7 @@ class ECommAlgorithm(val ap: ECommAlgorithmParams)
     query.blackList.getOrElse(Set[String]()) ++ seenItems ++ unavailableItems
   }
 
-  /** getRecentEvents **/
+  /** Get recent events of the user on items for recommending similar items */
   def getRecentItems(query: Query): Set[String] = {
     // get latest 10 user view item events
     val recentEvents = try {
@@ -367,7 +370,7 @@ class ECommAlgorithm(val ap: ECommAlgorithmParams)
         // entityType and entityId is specified for fast lookup
         entityType = "user",
         entityId = query.user,
-        eventNames = Some(Seq("view")),
+        eventNames = Some(ap.similarEvents),
         targetEntityType = Some(Some("item")),
         limit = Some(10),
         latest = true,
@@ -398,7 +401,7 @@ class ECommAlgorithm(val ap: ECommAlgorithmParams)
     recentItems
   }
 
-  /** prediction for user with known feature vector **/
+  /** Prediction for user with known feature vector */
   def predictKnownUser(
     userFeature: Array[Double],
     productModels: Map[Int, ProductModel],
@@ -420,7 +423,7 @@ class ECommAlgorithm(val ap: ECommAlgorithmParams)
       .map { case (i, pm) =>
         // NOTE: features must be defined, so can call .get
         val s = dotProduct(userFeature, pm.features.get)
-        // Can adjust score here
+        // may customize here to further adjust score
         (i, s)
       }
       .filter(_._2 > 0) // only keep items with score > 0
@@ -432,7 +435,7 @@ class ECommAlgorithm(val ap: ECommAlgorithmParams)
     topScores
   }
 
-  /** default prediction when know nothing about the user */
+  /** Default prediction when know nothing about the user */
   def predictDefault(
     productModels: Map[Int, ProductModel],
     query: Query,
@@ -450,7 +453,7 @@ class ECommAlgorithm(val ap: ECommAlgorithmParams)
         )
       }
       .map { case (i, pm) =>
-        // Can adjust score here
+        // may customize here to further adjust score
         (i, pm.count.toDouble)
       }
       .seq
@@ -461,7 +464,7 @@ class ECommAlgorithm(val ap: ECommAlgorithmParams)
     topScores
   }
 
-  /** return top similar items of rcently interacted items */
+  /** Return top similar items based on items user recently has action on */
   def predictSimilar(
     recentFeatures: Vector[Array[Double]],
     productModels: Map[Int, ProductModel],
@@ -485,7 +488,7 @@ class ECommAlgorithm(val ap: ECommAlgorithmParams)
           // pm.features must be defined because of filter logic above
           cosine(rf, pm.features.get)
         }.reduce(_ + _)
-        // Can adjust score here
+        // may customize here to further adjust score
         (i, s)
       }
       .filter(_._2 > 0) // keep items with score > 0

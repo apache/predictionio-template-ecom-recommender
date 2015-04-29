@@ -14,6 +14,7 @@ class ECommAlgorithmTest
     appName = "test-app",
     unseenOnly = true,
     seenEvents = List("buy", "view"),
+    similarEvents = List("view"),
     rank = 10,
     numIterations = 20,
     lambda = 0.01,
