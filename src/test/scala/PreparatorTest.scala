@@ -3,7 +3,8 @@ package org.template.ecommercerecommendation
 import org.scalatest.FlatSpec
 import org.scalatest.Matchers
 
-class PreparatorTest extends FlatSpec with EngineTestSparkContext with Matchers {
+class PreparatorTest
+  extends FlatSpec with EngineTestSparkContext with Matchers {
 
   val preparator = new Preparator()
   val users = Map(
@@ -28,7 +29,9 @@ class PreparatorTest extends FlatSpec with EngineTestSparkContext with Matchers 
     BuyEvent("u1", "i1", 1000040)
   )
 
+  // simple test for demonstration purpose
   "Preparator" should "prepare PreparedData" in {
+
     val trainingData = new TrainingData(
       users = sc.parallelize(users.toSeq),
       items = sc.parallelize(items.toSeq),
@@ -39,5 +42,8 @@ class PreparatorTest extends FlatSpec with EngineTestSparkContext with Matchers 
     val preparedData = preparator.prepare(sc, trainingData)
 
     preparedData.users.collect should contain theSameElementsAs users
+    preparedData.items.collect should contain theSameElementsAs items
+    preparedData.viewEvents.collect should contain theSameElementsAs view
+    preparedData.buyEvents.collect should contain theSameElementsAs buy
   }
 }
