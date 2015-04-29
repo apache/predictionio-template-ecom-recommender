@@ -9,11 +9,12 @@
   },
   "algorithms": [
     {
-      "name": "als",
+      "name": "ecomm",
       "params": {
         "appName": "INVALID_APP_NAME",
         "unseenOnly": true,
         "seenEvents": ["buy", "view"],
+        "similarEvents": ["view"],
         "rank": 10,
         "numIterations" : 20,
         "lambda": 0.01,

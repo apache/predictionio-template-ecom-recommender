@@ -6,6 +6,16 @@ Please refer to http://docs.prediction.io/templates/ecommercerecommendation/quic
 
 ## Versions
 
+### v0.4.0
+
+- Change from ALSAlgorithm.scala to ECommAlgorithm.scala
+
+  * return popular bought items when no information is found for the user.
+  * add "similarEvents" parameter for configuration what user-to-item events are used for finding similar items
+  * re-structure the Algorithm code for easier customization and testing
+
+- add some unit tests for testing code that may be customized
+
 ### v0.3.1
 
 - use INVALID_APP_NAME as default appName in engine.json
@@ -112,7 +122,11 @@ http://localhost:8000/queries.json \
 import some view events and try to get recommendation for x1 again.
 
 ```
-curl -i -X POST http://localhost:7070/events.json?accessKey=zPkr6sBwQoBwBjVHK2hsF9u26L38ARSe19QzkdYentuomCtYSuH0vXP5fq7advo4 \
+accessKey=<YOUR_ACCESS_KEY>
+```
+
+```
+curl -i -X POST http://localhost:7070/events.json?accessKey=$accessKey \
 -H "Content-Type: application/json" \
 -d '{
   "event" : "view",
@@ -123,7 +137,7 @@ curl -i -X POST http://localhost:7070/events.json?accessKey=zPkr6sBwQoBwBjVHK2hs
   "eventTime" : "2015-02-17T02:11:21.934Z"
 }'
 
-curl -i -X POST http://localhost:7070/events.json?accessKey=zPkr6sBwQoBwBjVHK2hsF9u26L38ARSe19QzkdYentuomCtYSuH0vXP5fq7advo4 \
+curl -i -X POST http://localhost:7070/events.json?accessKey=$accessKey \
 -H "Content-Type: application/json" \
 -d '{
   "event" : "view",
@@ -141,7 +155,7 @@ curl -i -X POST http://localhost:7070/events.json?accessKey=zPkr6sBwQoBwBjVHK2hs
 Set the following items as unavailable (need to specify complete list each time when this list is changed):
 
 ```
-curl -i -X POST http://localhost:7070/events.json?accessKey=zPkr6sBwQoBwBjVHK2hsF9u26L38ARSe19QzkdYentuomCtYSuH0vXP5fq7advo4 \
+curl -i -X POST http://localhost:7070/events.json?accessKey=$accessKey \
 -H "Content-Type: application/json" \
 -d '{
   "event" : "$set",
@@ -157,7 +171,7 @@ curl -i -X POST http://localhost:7070/events.json?accessKey=zPkr6sBwQoBwBjVHK2hs
 Set empty list when no more items unavailable:
 
 ```
-curl -i -X POST http://localhost:7070/events.json?accessKey=zPkr6sBwQoBwBjVHK2hsF9u26L38ARSe19QzkdYentuomCtYSuH0vXP5fq7advo4 \
+curl -i -X POST http://localhost:7070/events.json?accessKey=$accessKey \
 -H "Content-Type: application/json" \
 -d '{
   "event" : "$set",

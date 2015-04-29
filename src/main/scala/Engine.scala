@@ -25,7 +25,7 @@ object ECommerceRecommendationEngine extends IEngineFactory {
     new Engine(
       classOf[DataSource],
       classOf[Preparator],
-      Map("als" -> classOf[ALSAlgorithm]),
+      Map("ecomm" -> classOf[ECommAlgorithm]),
       classOf[Serving])
   }
 }
