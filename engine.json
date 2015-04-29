@@ -9,7 +9,7 @@
   },
   "algorithms": [
     {
-      "name": "als",
+      "name": "ecomm",
       "params": {
         "appName": "INVALID_APP_NAME",
         "unseenOnly": true,
