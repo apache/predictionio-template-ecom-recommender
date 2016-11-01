@@ -3,7 +3,7 @@ package org.template.ecommercerecommendation
 import org.scalatest.FlatSpec
 import org.scalatest.Matchers
 
-import io.prediction.data.storage.BiMap
+import org.apache.predictionio.data.storage.BiMap
 
 import org.apache.spark.mllib.recommendation.{Rating => MLlibRating}
 
