@@ -1,7 +1,5 @@
 name := "template-scala-parallel-ecommercerecommendation"
 
-organization := "org.apache.predictionio"
-
 parallelExecution in Test := false
 
 libraryDependencies ++= Seq(

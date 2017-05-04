@@ -6,6 +6,12 @@ Please refer to http://predictionio.incubator.apache.org/templates/ecommercereco
 
 ## Versions
 
+### v0.11.0-incubating
+
+- Bump version number to track PredictionIO version
+- Rename Scala package name
+- Update SBT version
+
 ### v0.5.0
 
 - Update for Apache PredictionIO 0.10.0-incubating

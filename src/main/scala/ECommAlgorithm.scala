@@ -1,4 +1,4 @@
-package org.template.ecommercerecommendation
+package org.example.ecommercerecommendation
 
 import org.apache.predictionio.controller.P2LAlgorithm
 import org.apache.predictionio.controller.Params

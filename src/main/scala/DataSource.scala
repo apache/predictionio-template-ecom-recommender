@@ -1,4 +1,4 @@
-package org.template.ecommercerecommendation
+package org.example.ecommercerecommendation
 
 import org.apache.predictionio.controller.PDataSource
 import org.apache.predictionio.controller.EmptyEvaluationInfo
