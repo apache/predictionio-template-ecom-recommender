@@ -1,7 +1,7 @@
 {
   "id": "default",
   "description": "Default settings",
-  "engineFactory": "org.template.ecommercerecommendation.ECommerceRecommendationEngine",
+  "engineFactory": "org.example.ecommercerecommendation.ECommerceRecommendationEngine",
   "datasource": {
     "params" : {
       "appName": "INVALID_APP_NAME"

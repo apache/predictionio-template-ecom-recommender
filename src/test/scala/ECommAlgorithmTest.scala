@@ -1,4 +1,4 @@
-package org.template.ecommercerecommendation
+package org.example.ecommercerecommendation
 
 import org.scalatest.FlatSpec
 import org.scalatest.Matchers

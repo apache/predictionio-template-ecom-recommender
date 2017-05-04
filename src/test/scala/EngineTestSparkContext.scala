@@ -1,4 +1,4 @@
-package org.template.ecommercerecommendation
+package org.example.ecommercerecommendation
 
 import org.apache.spark.{SparkConf, SparkContext}
 import org.scalatest.{BeforeAndAfterAll, Suite}
