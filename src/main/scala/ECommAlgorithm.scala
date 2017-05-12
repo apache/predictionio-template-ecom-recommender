@@ -320,7 +320,7 @@ class ECommAlgorithm(val ap: ECommAlgorithmParams)
         try {
           event.targetEntityId.get
         } catch {
-          case e => {
+          case e: Exception => {
             logger.error(s"Can't get targetEntityId of event ${event}.")
             throw e
           }
@@ -391,7 +391,7 @@ class ECommAlgorithm(val ap: ECommAlgorithmParams)
       try {
         event.targetEntityId.get
       } catch {
-        case e => {
+        case e: Exception => {
           logger.error("Can't get targetEntityId of event ${event}.")
           throw e
         }
