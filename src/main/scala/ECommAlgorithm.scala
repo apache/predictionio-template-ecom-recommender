@@ -7,7 +7,6 @@ import org.apache.predictionio.data.storage.Event
 import org.apache.predictionio.data.store.LEventStore
 
 import org.apache.spark.SparkContext
-import org.apache.spark.SparkContext._
 import org.apache.spark.mllib.recommendation.ALS
 import org.apache.spark.mllib.recommendation.{Rating => MLlibRating}
 import org.apache.spark.rdd.RDD
@@ -16,7 +15,6 @@ import grizzled.slf4j.Logger
 
 import scala.collection.mutable.PriorityQueue
 import scala.concurrent.duration.Duration
-import scala.concurrent.ExecutionContext.Implicits.global
 
 case class ECommAlgorithmParams(
   appName: String,
@@ -320,7 +318,7 @@ class ECommAlgorithm(val ap: ECommAlgorithmParams)
         try {
           event.targetEntityId.get
         } catch {
-          case e => {
+          case e: Exception => {
             logger.error(s"Can't get targetEntityId of event ${event}.")
             throw e
           }
@@ -391,7 +389,7 @@ class ECommAlgorithm(val ap: ECommAlgorithmParams)
       try {
         event.targetEntityId.get
       } catch {
-        case e => {
+        case e: Exception => {
           logger.error("Can't get targetEntityId of event ${event}.")
           throw e
         }
