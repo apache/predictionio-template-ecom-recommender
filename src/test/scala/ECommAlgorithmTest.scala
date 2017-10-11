@@ -166,7 +166,7 @@ class ECommAlgorithmTest
 
     top(0)._1 should be (expected(0)._1)
     top(1)._1 should be (expected(1)._1)
-    top(0)._2 should be (expected(0)._2 plusOrMinus 0.001)
-    top(1)._2 should be (expected(1)._2 plusOrMinus 0.001)
+    top(0)._2 should be (expected(0)._2 +- 0.001)
+    top(1)._2 should be (expected(1)._2 +- 0.001)
   }
 }

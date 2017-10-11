@@ -8,7 +8,6 @@ import org.apache.predictionio.data.storage.Event
 import org.apache.predictionio.data.store.PEventStore
 
 import org.apache.spark.SparkContext
-import org.apache.spark.SparkContext._
 import org.apache.spark.rdd.RDD
 
 import grizzled.slf4j.Logger
