@@ -3,9 +3,13 @@
 ## Documentation
 
 Please refer to
-http://predictionio.incubator.apache.org/templates/ecommercerecommendation/quickstart/
+https://predictionio.apache.org/templates/ecommercerecommendation/quickstart/
 
 ## Versions
+
+### v0.13.0
+
+Update for Apache PredictionIO 0.13.0
 
 ### v0.12.0-incubating
 
