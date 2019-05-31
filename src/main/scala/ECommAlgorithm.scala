@@ -62,6 +62,7 @@ class ECommAlgorithm(val ap: ECommAlgorithmParams)
 
   @transient lazy val logger = Logger[this.type]
 
+  override
   def train(sc: SparkContext, data: PreparedData): ECommModel = {
     require(!data.viewEvents.take(1).isEmpty,
       s"viewEvents in PreparedData cannot be empty." +
@@ -214,6 +215,7 @@ class ECommAlgorithm(val ap: ECommAlgorithmParams)
     buyCountsRDD.collectAsMap.toMap
   }
 
+  override
   def predict(model: ECommModel, query: Query): PredictedResult = {
 
     val userFeatures = model.userFeatures
